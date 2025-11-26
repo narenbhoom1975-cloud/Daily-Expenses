@@ -9,7 +9,7 @@ const App: React.FC = () => {
   const [result, setResult] = useState<ExpenseResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  // ✅ Updated to call Cloudflare Worker instead of Gemini API directly
+  // Handle audio recording and send to Cloudflare Worker
   const handleRecordingComplete = async (blob: Blob) => {
     setStatus(ProcessingStatus.PROCESSING);
     setError(null);
@@ -18,7 +18,10 @@ const App: React.FC = () => {
       // Convert audio blob to base64
       const arrayBuffer = await blob.arrayBuffer();
       const base64Audio = btoa(
-        new Uint8Array(arrayBuffer).reduce((data, byte) => data + String.fromCharCode(byte), '')
+        new Uint8Array(arrayBuffer).reduce(
+          (data, byte) => data + String.fromCharCode(byte),
+          ''
+        )
       );
 
       // Call Cloudflare Worker
@@ -30,9 +33,19 @@ const App: React.FC = () => {
 
       const data = await res.json();
 
-      // Convert response to ExpenseResponse (adjust if needed)
+      // Build proper ExpenseResponse shape
       const expenseData: ExpenseResponse = {
-        items: [{ description: data.reply, amount: 0 }],
+        transcription: data.reply || "",
+        translation: data.reply || "",
+        expenses: [
+          {
+            item: data.reply || "Unknown",
+            amount: 0,
+            category: "Misc",
+          },
+        ],
+        totalAmount: 0,
+        currency: "INR",
       };
 
       setResult(expenseData);
@@ -107,7 +120,9 @@ const App: React.FC = () => {
           </div>
         )}
 
-        {status === ProcessingStatus.SUCCESS && result && <ExpenseList data={result} onReset={handleReset} />}
+        {status === ProcessingStatus.SUCCESS && result && (
+          <ExpenseList data={result} onReset={handleReset} />
+        )}
       </main>
 
       {/* Footer */}
